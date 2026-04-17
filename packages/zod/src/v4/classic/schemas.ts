@@ -8,6 +8,35 @@ import * as checks from "./checks.js";
 import * as iso from "./iso.js";
 import * as parse from "./parse.js";
 
+// Maps (prototype, key) pairs already initialized — avoids repeated prototype setup
+const _protoInitMap = new WeakMap<object, Set<string>>();
+
+/**
+ * Sets shared methods on the prototype of inst's constructor (once per concrete type).
+ * Each initializer uses a unique key so multiple call sites don't interfere.
+ */
+function _initProto(
+  inst: object,
+  key: string,
+  methods: Record<string, Function>,
+  defineProps?: Array<[string, PropertyDescriptor]>
+): void {
+  const proto = Object.getPrototypeOf(inst);
+  let keys = _protoInitMap.get(proto);
+  if (!keys) {
+    keys = new Set();
+    _protoInitMap.set(proto, keys);
+  }
+  if (keys.has(key)) return;
+  keys.add(key);
+  Object.assign(proto as any, methods);
+  if (defineProps) {
+    for (const [k, desc] of defineProps) {
+      Object.defineProperty(proto, k, { ...desc, configurable: true });
+    }
+  }
+}
+
 ///////////////////////////////////////////
 ///////////////////////////////////////////
 ////////////                   ////////////
@@ -591,11 +620,6 @@ export const ZodType: core.$constructor<ZodType> = /*@__PURE__*/ core.$construct
   Object.defineProperty(inst, "_def", { value: def });
 
   // base methods
-  inst.check = _sharedCheck as any;
-  inst.with = _sharedCheck as any;
-  inst.clone = _sharedClone as any;
-  inst.brand = _sharedBrand as any;
-  inst.register = _sharedRegister as any;
 
   // parsing
   // parsing — kept as per-instance closures so that detached usage works:
@@ -617,41 +641,57 @@ export const ZodType: core.$constructor<ZodType> = /*@__PURE__*/ core.$construct
   inst.safeDecodeAsync = async (data, params) => parse.safeDecodeAsync(inst, data, params);
 
   // refinements
-  inst.refine = _sharedRefine as any;
-  inst.superRefine = _sharedSuperRefine as any;
-  inst.overwrite = _sharedOverwrite as any;
 
   // wrappers
-  inst.optional = _sharedOptional as any;
-  inst.exactOptional = _sharedExactOptional as any;
-  inst.nullable = _sharedNullable as any;
-  inst.nullish = _sharedNullish as any;
-  inst.nonoptional = _sharedNonoptional as any;
-  inst.array = _sharedArray as any;
-  inst.or = _sharedOr as any;
-  inst.and = _sharedAnd as any;
-  inst.transform = _sharedTransform as any;
-  inst.default = _sharedDefault as any;
-  inst.prefault = _sharedPrefault as any;
   // inst.coalesce = (def, params) => coalesce(inst, def, params);
-  inst.catch = _sharedCatch as any;
-  inst.pipe = _sharedPipe as any;
-  inst.readonly = _sharedReadonly as any;
 
   // meta
-  inst.describe = _sharedDescribe as any;
-  Object.defineProperty(inst, "description", {
-    get() {
-      return core.globalRegistry.get(this as any)?.description;
-    },
-    configurable: true,
-  });
-  inst.meta = _sharedMeta as any;
 
   // helpers
-  inst.isOptional = _sharedIsOptional as any;
-  inst.isNullable = _sharedIsNullable as any;
-  inst.apply = _sharedApply as any;
+  _initProto(
+    inst,
+    "ZodType",
+    {
+      check: _sharedCheck,
+      with: _sharedCheck,
+      clone: _sharedClone,
+      brand: _sharedBrand,
+      register: _sharedRegister,
+      refine: _sharedRefine,
+      superRefine: _sharedSuperRefine,
+      overwrite: _sharedOverwrite,
+      optional: _sharedOptional,
+      exactOptional: _sharedExactOptional,
+      nullable: _sharedNullable,
+      nullish: _sharedNullish,
+      nonoptional: _sharedNonoptional,
+      array: _sharedArray,
+      or: _sharedOr,
+      and: _sharedAnd,
+      transform: _sharedTransform,
+      default: _sharedDefault,
+      prefault: _sharedPrefault,
+      catch: _sharedCatch,
+      pipe: _sharedPipe,
+      readonly: _sharedReadonly,
+      describe: _sharedDescribe,
+      meta: _sharedMeta,
+      isOptional: _sharedIsOptional,
+      isNullable: _sharedIsNullable,
+      apply: _sharedApply,
+    },
+    [
+      [
+        "description",
+        {
+          get() {
+            return core.globalRegistry.get(this as any)?.description;
+          },
+          configurable: true,
+        },
+      ],
+    ]
+  );
   return inst;
 });
 
@@ -695,23 +735,25 @@ export const _ZodString: core.$constructor<_ZodString> = /*@__PURE__*/ core.$con
   inst.maxLength = bag.maximum ?? null;
 
   // validations
-  inst.regex = _sharedRegex as any;
-  inst.includes = _sharedIncludes as any;
-  inst.startsWith = _sharedStartsWith as any;
-  inst.endsWith = _sharedEndsWith as any;
-  inst.min = _sharedStrMin as any;
-  inst.max = _sharedStrMax as any;
-  inst.length = _sharedStrLength as any;
-  inst.nonempty = _sharedStrNonempty as any;
-  inst.lowercase = _sharedLowercase as any;
-  inst.uppercase = _sharedUppercase as any;
 
   // transforms
-  inst.trim = _sharedTrim as any;
-  inst.normalize = _sharedNormalize as any;
-  inst.toLowerCase = _sharedToLowerCase as any;
-  inst.toUpperCase = _sharedToUpperCase as any;
-  inst.slugify = _sharedSlugify as any;
+  _initProto(inst, "_ZodString", {
+    regex: _sharedRegex,
+    includes: _sharedIncludes,
+    startsWith: _sharedStartsWith,
+    endsWith: _sharedEndsWith,
+    min: _sharedStrMin,
+    max: _sharedStrMax,
+    length: _sharedStrLength,
+    nonempty: _sharedStrNonempty,
+    lowercase: _sharedLowercase,
+    uppercase: _sharedUppercase,
+    trim: _sharedTrim,
+    normalize: _sharedNormalize,
+    toLowerCase: _sharedToLowerCase,
+    toUpperCase: _sharedToUpperCase,
+    slugify: _sharedSlugify,
+  });
 });
 
 export interface ZodString extends _ZodString<core.$ZodStringInternals<string>> {
@@ -791,35 +833,35 @@ export const ZodString: core.$constructor<ZodString> = /*@__PURE__*/ core.$const
   core.$ZodString.init(inst, def);
   _ZodString.init(inst, def);
 
-  inst.email = _sharedEmail as any;
-  inst.url = _sharedUrl as any;
-  inst.jwt = _sharedJwt as any;
-  inst.emoji = _sharedEmoji as any;
-  inst.guid = _sharedGuid as any;
-  inst.uuid = _sharedUuid as any;
-  inst.uuidv4 = _sharedUuidv4 as any;
-  inst.uuidv6 = _sharedUuidv6 as any;
-  inst.uuidv7 = _sharedUuidv7 as any;
-  inst.nanoid = _sharedNanoid as any;
-  inst.guid = _sharedGuid as any;
-  inst.cuid = _sharedCuid as any;
-  inst.cuid2 = _sharedCuid2 as any;
-  inst.ulid = _sharedUlid as any;
-  inst.base64 = _sharedBase64 as any;
-  inst.base64url = _sharedBase64url as any;
-  inst.xid = _sharedXid as any;
-  inst.ksuid = _sharedKsuid as any;
-  inst.ipv4 = _sharedIpv4 as any;
-  inst.ipv6 = _sharedIpv6 as any;
-  inst.cidrv4 = _sharedCidrv4 as any;
-  inst.cidrv6 = _sharedCidrv6 as any;
-  inst.e164 = _sharedE164 as any;
-
   // iso
-  inst.datetime = _sharedDatetime as any;
-  inst.date = _sharedDate as any;
-  inst.time = _sharedTime as any;
-  inst.duration = _sharedDuration as any;
+  _initProto(inst, "ZodString", {
+    email: _sharedEmail,
+    url: _sharedUrl,
+    jwt: _sharedJwt,
+    emoji: _sharedEmoji,
+    guid: _sharedGuid,
+    uuid: _sharedUuid,
+    uuidv4: _sharedUuidv4,
+    uuidv6: _sharedUuidv6,
+    uuidv7: _sharedUuidv7,
+    nanoid: _sharedNanoid,
+    cuid: _sharedCuid,
+    cuid2: _sharedCuid2,
+    ulid: _sharedUlid,
+    base64: _sharedBase64,
+    base64url: _sharedBase64url,
+    xid: _sharedXid,
+    ksuid: _sharedKsuid,
+    ipv4: _sharedIpv4,
+    ipv6: _sharedIpv6,
+    cidrv4: _sharedCidrv4,
+    cidrv6: _sharedCidrv6,
+    e164: _sharedE164,
+    datetime: _sharedDatetime,
+    date: _sharedDate,
+    time: _sharedTime,
+    duration: _sharedDuration,
+  });
 });
 
 export function string(params?: string | core.$ZodStringParams): ZodString;
@@ -1242,23 +1284,7 @@ export const ZodNumber: core.$constructor<ZodNumber> = /*@__PURE__*/ core.$const
 
   inst._zod.processJSONSchema = (ctx, json, params) => processors.numberProcessor(inst, ctx, json, params);
 
-  inst.gt = _sharedNumGt as any;
-  inst.gte = _sharedNumGte as any;
-  inst.min = _sharedNumGte as any;
-  inst.lt = _sharedNumLt as any;
-  inst.lte = _sharedNumLte as any;
-  inst.max = _sharedNumLte as any;
-  inst.int = _sharedNumInt as any;
-  inst.safe = _sharedNumInt as any;
-  inst.positive = _sharedNumPositive as any;
-  inst.nonnegative = _sharedNumNonnegative as any;
-  inst.negative = _sharedNumNegative as any;
-  inst.nonpositive = _sharedNumNonpositive as any;
-  inst.multipleOf = _sharedNumMultipleOf as any;
-  inst.step = _sharedNumMultipleOf as any;
-
   // inst.finite = (params) => inst.check(core.finite(params));
-  inst.finite = _sharedNumFinite as any;
 
   const bag = inst._zod.bag;
   inst.minValue =
@@ -1268,6 +1294,23 @@ export const ZodNumber: core.$constructor<ZodNumber> = /*@__PURE__*/ core.$const
   inst.isInt = (bag.format ?? "").includes("int") || Number.isSafeInteger(bag.multipleOf ?? 0.5);
   inst.isFinite = true;
   inst.format = bag.format ?? null;
+  _initProto(inst, "ZodNumber", {
+    gt: _sharedNumGt,
+    gte: _sharedNumGte,
+    min: _sharedNumGte,
+    lt: _sharedNumLt,
+    lte: _sharedNumLte,
+    max: _sharedNumLte,
+    int: _sharedNumInt,
+    safe: _sharedNumInt,
+    positive: _sharedNumPositive,
+    nonnegative: _sharedNumNonnegative,
+    negative: _sharedNumNegative,
+    nonpositive: _sharedNumNonpositive,
+    multipleOf: _sharedNumMultipleOf,
+    step: _sharedNumMultipleOf,
+    finite: _sharedNumFinite,
+  });
 });
 
 export function number(params?: string | core.$ZodNumberParams): ZodNumber {
@@ -1356,24 +1399,23 @@ export const ZodBigInt: core.$constructor<ZodBigInt> = /*@__PURE__*/ core.$const
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.bigintProcessor(inst, ctx, json, params);
 
-  inst.gte = _sharedBigIntGte as any;
-  inst.min = _sharedBigIntGte as any;
-  inst.gt = _sharedBigIntGt as any;
-  inst.gte = _sharedBigIntGte as any;
-  inst.min = _sharedBigIntGte as any;
-  inst.lt = _sharedBigIntLt as any;
-  inst.lte = _sharedBigIntLte as any;
-  inst.max = _sharedBigIntLte as any;
-  inst.positive = _sharedBigIntPositive as any;
-  inst.negative = _sharedBigIntNegative as any;
-  inst.nonpositive = _sharedBigIntNonpositive as any;
-  inst.nonnegative = _sharedBigIntNonnegative as any;
-  inst.multipleOf = _sharedBigIntMultipleOf as any;
-
   const bag = inst._zod.bag;
   inst.minValue = bag.minimum ?? null;
   inst.maxValue = bag.maximum ?? null;
   inst.format = bag.format ?? null;
+  _initProto(inst, "ZodBigInt", {
+    gte: _sharedBigIntGte,
+    min: _sharedBigIntGte,
+    gt: _sharedBigIntGt,
+    lt: _sharedBigIntLt,
+    lte: _sharedBigIntLte,
+    max: _sharedBigIntLte,
+    positive: _sharedBigIntPositive,
+    negative: _sharedBigIntNegative,
+    nonpositive: _sharedBigIntNonpositive,
+    nonnegative: _sharedBigIntNonnegative,
+    multipleOf: _sharedBigIntMultipleOf,
+  });
 });
 
 export function bigint(params?: string | core.$ZodBigIntParams): ZodBigInt {
@@ -1510,8 +1552,8 @@ export const ZodDate: core.$constructor<ZodDate> = /*@__PURE__*/ core.$construct
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.dateProcessor(inst, ctx, json, params);
 
-  inst.min = _sharedDateMin as any;
-  inst.max = _sharedDateMax as any;
+  _initProto(inst, "__min__", { min: _sharedDateMin });
+  _initProto(inst, "__max__", { max: _sharedDateMax });
 
   const c = inst._zod.bag;
   inst.minDate = c.minimum ? new Date(c.minimum) : null;
@@ -1541,12 +1583,12 @@ export const ZodArray: core.$constructor<ZodArray> = /*@__PURE__*/ core.$constru
   inst._zod.processJSONSchema = (ctx, json, params) => processors.arrayProcessor(inst, ctx, json, params);
 
   inst.element = def.element as any;
-  inst.min = _sharedArrMin as any;
-  inst.nonempty = _sharedArrNonempty as any;
-  inst.max = _sharedArrMax as any;
-  inst.length = _sharedArrLength as any;
+  _initProto(inst, "__min__", { min: _sharedArrMin });
+  _initProto(inst, "__nonempty__", { nonempty: _sharedArrNonempty });
+  _initProto(inst, "__max__", { max: _sharedArrMax });
+  _initProto(inst, "__length__", { length: _sharedArrLength });
 
-  inst.unwrap = _sharedArrUnwrap as any;
+  _initProto(inst, "__unwrap__", { unwrap: _sharedArrUnwrap });
 });
 
 export function array<T extends core.SomeType>(element: T, params?: string | core.$ZodArrayParams): ZodArray<T> {
@@ -1660,19 +1702,19 @@ export const ZodObject: core.$constructor<ZodObject> = /*@__PURE__*/ core.$const
     return def.shape;
   });
 
-  inst.keyof = _sharedObjKeyof as any;
-  inst.catchall = _sharedObjCatchall as any;
-  inst.passthrough = _sharedObjPassthrough as any;
-  inst.loose = _sharedObjLoose as any;
-  inst.strict = _sharedObjStrict as any;
-  inst.strip = _sharedObjStrip as any;
-  inst.extend = _sharedObjExtend as any;
-  inst.safeExtend = _sharedObjSafeExtend as any;
-  inst.merge = _sharedObjMerge as any;
-  inst.pick = _sharedObjPick as any;
-  inst.omit = _sharedObjOmit as any;
-  inst.partial = _sharedObjPartial as any;
-  inst.required = _sharedObjRequired as any;
+  _initProto(inst, "__keyof__", { keyof: _sharedObjKeyof });
+  _initProto(inst, "__catchall__", { catchall: _sharedObjCatchall });
+  _initProto(inst, "__passthrough__", { passthrough: _sharedObjPassthrough });
+  _initProto(inst, "__loose__", { loose: _sharedObjLoose });
+  _initProto(inst, "__strict__", { strict: _sharedObjStrict });
+  _initProto(inst, "__strip__", { strip: _sharedObjStrip });
+  _initProto(inst, "__extend__", { extend: _sharedObjExtend });
+  _initProto(inst, "__safeExtend__", { safeExtend: _sharedObjSafeExtend });
+  _initProto(inst, "__merge__", { merge: _sharedObjMerge });
+  _initProto(inst, "__pick__", { pick: _sharedObjPick });
+  _initProto(inst, "__omit__", { omit: _sharedObjOmit });
+  _initProto(inst, "__partial__", { partial: _sharedObjPartial });
+  _initProto(inst, "__required__", { required: _sharedObjRequired });
 });
 
 export function object<T extends core.$ZodLooseShape = Partial<Record<never, core.SomeType>>>(
@@ -1843,7 +1885,7 @@ export const ZodTuple: core.$constructor<ZodTuple> = /*@__PURE__*/ core.$constru
   core.$ZodTuple.init(inst, def);
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.tupleProcessor(inst, ctx, json, params);
-  inst.rest = _sharedTupleRest as any;
+  _initProto(inst, "__rest__", { rest: _sharedTupleRest });
 });
 
 export function tuple<T extends readonly [core.SomeType, ...core.SomeType[]]>(
@@ -1951,10 +1993,10 @@ export const ZodMap: core.$constructor<ZodMap> = /*@__PURE__*/ core.$constructor
   inst._zod.processJSONSchema = (ctx, json, params) => processors.mapProcessor(inst, ctx, json, params);
   inst.keyType = def.keyType;
   inst.valueType = def.valueType;
-  inst.min = _sharedSizeMin as any;
-  inst.nonempty = _sharedSizeNonempty as any;
-  inst.max = _sharedSizeMax as any;
-  inst.size = _sharedSize as any;
+  _initProto(inst, "__min__", { min: _sharedSizeMin });
+  _initProto(inst, "__nonempty__", { nonempty: _sharedSizeNonempty });
+  _initProto(inst, "__max__", { max: _sharedSizeMax });
+  _initProto(inst, "__size__", { size: _sharedSize });
 });
 
 export function map<Key extends core.SomeType, Value extends core.SomeType>(
@@ -1985,10 +2027,10 @@ export const ZodSet: core.$constructor<ZodSet> = /*@__PURE__*/ core.$constructor
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.setProcessor(inst, ctx, json, params);
 
-  inst.min = _sharedSizeMin as any;
-  inst.nonempty = _sharedSizeNonempty as any;
-  inst.max = _sharedSizeMax as any;
-  inst.size = _sharedSize as any;
+  _initProto(inst, "__min__", { min: _sharedSizeMin });
+  _initProto(inst, "__nonempty__", { nonempty: _sharedSizeNonempty });
+  _initProto(inst, "__max__", { max: _sharedSizeMax });
+  _initProto(inst, "__size__", { size: _sharedSize });
 });
 
 export function set<Value extends core.SomeType>(
@@ -2029,8 +2071,8 @@ export const ZodEnum: core.$constructor<ZodEnum> = /*@__PURE__*/ core.$construct
   inst.enum = def.entries;
   inst.options = Object.values(def.entries);
 
-  inst.extract = _sharedEnumExtract as any;
-  inst.exclude = _sharedEnumExclude as any;
+  _initProto(inst, "__extract__", { extract: _sharedEnumExtract });
+  _initProto(inst, "__exclude__", { exclude: _sharedEnumExclude });
 });
 
 function _enum<const T extends readonly string[]>(
@@ -2116,9 +2158,9 @@ export const ZodFile: core.$constructor<ZodFile> = /*@__PURE__*/ core.$construct
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.fileProcessor(inst, ctx, json, params);
 
-  inst.min = _sharedFileMin as any;
-  inst.max = _sharedFileMax as any;
-  inst.mime = _sharedFileMime as any;
+  _initProto(inst, "__min__", { min: _sharedFileMin });
+  _initProto(inst, "__max__", { max: _sharedFileMax });
+  _initProto(inst, "__mime__", { mime: _sharedFileMime });
 });
 
 export function file(params?: string | core.$ZodFileParams): ZodFile {
@@ -2195,7 +2237,7 @@ export const ZodOptional: core.$constructor<ZodOptional> = /*@__PURE__*/ core.$c
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => processors.optionalProcessor(inst, ctx, json, params);
 
-    inst.unwrap = _sharedUnwrap as any;
+    _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
   }
 );
 
@@ -2220,7 +2262,7 @@ export const ZodExactOptional: core.$constructor<ZodExactOptional> = /*@__PURE__
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => processors.optionalProcessor(inst, ctx, json, params);
 
-    inst.unwrap = _sharedUnwrap as any;
+    _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
   }
 );
 
@@ -2245,7 +2287,7 @@ export const ZodNullable: core.$constructor<ZodNullable> = /*@__PURE__*/ core.$c
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => processors.nullableProcessor(inst, ctx, json, params);
 
-    inst.unwrap = _sharedUnwrap as any;
+    _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
   }
 );
 
@@ -2275,8 +2317,8 @@ export const ZodDefault: core.$constructor<ZodDefault> = /*@__PURE__*/ core.$con
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.defaultProcessor(inst, ctx, json, params);
 
-  inst.unwrap = _sharedUnwrap as any;
-  inst.removeDefault = _sharedUnwrap as any;
+  _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
+  _initProto(inst, "__removeDefault__", { removeDefault: _sharedUnwrap });
 });
 
 export function _default<T extends core.SomeType>(
@@ -2305,7 +2347,7 @@ export const ZodPrefault: core.$constructor<ZodPrefault> = /*@__PURE__*/ core.$c
     core.$ZodPrefault.init(inst, def);
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => processors.prefaultProcessor(inst, ctx, json, params);
-    inst.unwrap = _sharedUnwrap as any;
+    _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
   }
 );
 
@@ -2336,7 +2378,7 @@ export const ZodNonOptional: core.$constructor<ZodNonOptional> = /*@__PURE__*/ c
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => processors.nonoptionalProcessor(inst, ctx, json, params);
 
-    inst.unwrap = _sharedUnwrap as any;
+    _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
   }
 );
 
@@ -2363,7 +2405,7 @@ export const ZodSuccess: core.$constructor<ZodSuccess> = /*@__PURE__*/ core.$con
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.successProcessor(inst, ctx, json, params);
 
-  inst.unwrap = _sharedUnwrap as any;
+  _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
 });
 
 export function success<T extends core.SomeType>(innerType: T): ZodSuccess<T> {
@@ -2387,8 +2429,8 @@ export const ZodCatch: core.$constructor<ZodCatch> = /*@__PURE__*/ core.$constru
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.catchProcessor(inst, ctx, json, params);
 
-  inst.unwrap = _sharedUnwrap as any;
-  inst.removeCatch = _sharedUnwrap as any;
+  _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
+  _initProto(inst, "__removeCatch__", { removeCatch: _sharedUnwrap });
 });
 
 function _catch<T extends core.SomeType>(
@@ -2493,7 +2535,7 @@ export const ZodReadonly: core.$constructor<ZodReadonly> = /*@__PURE__*/ core.$c
     ZodType.init(inst, def);
     inst._zod.processJSONSchema = (ctx, json, params) => processors.readonlyProcessor(inst, ctx, json, params);
 
-    inst.unwrap = _sharedUnwrap as any;
+    _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
   }
 );
 
@@ -2542,7 +2584,7 @@ export const ZodLazy: core.$constructor<ZodLazy> = /*@__PURE__*/ core.$construct
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.lazyProcessor(inst, ctx, json, params);
 
-  inst.unwrap = _sharedLazyUnwrap as any;
+  _initProto(inst, "__unwrap__", { unwrap: _sharedLazyUnwrap });
 });
 
 export function lazy<T extends core.SomeType>(getter: () => T): ZodLazy<T> {
@@ -2564,7 +2606,7 @@ export const ZodPromise: core.$constructor<ZodPromise> = /*@__PURE__*/ core.$con
   ZodType.init(inst, def);
   inst._zod.processJSONSchema = (ctx, json, params) => processors.promiseProcessor(inst, ctx, json, params);
 
-  inst.unwrap = _sharedUnwrap as any;
+  _initProto(inst, "__unwrap__", { unwrap: _sharedUnwrap });
 });
 
 export function promise<T extends core.SomeType>(innerType: T): ZodPromise<T> {

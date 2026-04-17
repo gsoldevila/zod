@@ -38,16 +38,6 @@ export /*@__NO_SIDE_EFFECTS__*/ function $constructor<T extends ZodTrait, D = T[
     inst._zod.traits.add(name);
 
     initializer(inst, def);
-
-    // support prototype modifications
-    const proto = _.prototype;
-    const keys = Object.keys(proto);
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i]!;
-      if (!(k in inst)) {
-        (inst as any)[k] = proto[k].bind(inst);
-      }
-    }
   }
 
   // doesn't work if Parent has a constructor with arguments
