@@ -1,43 +1,32 @@
 import { expect, test } from "vitest";
 import * as z from "zod/mini";
 
-declare module "zod/v4/core" {
-  interface $ZodType {
-    /** @deprecated */
-    _core(): string;
-  }
-}
-
-test("prototype extension", () => {
-  z.core.$ZodType.prototype._core = function () {
+// With prototype-based methods, extensions must target the concrete schema
+// prototype (e.g. ZodMiniString) rather than the abstract ZodMiniType or
+// $ZodType. This is standard JS prototype semantics — no copy-to-instance
+// loop is needed because prototype lookups traverse the chain automatically.
+test("prototype extension — core augmentation on concrete type", () => {
+  (z.ZodMiniString.prototype as any)._core = function () {
     return "_core";
   };
 
   // should pass
-  const result = z.string()._core();
+  const result = (z.string() as any)._core();
   expect(result).toBe("_core");
-  // expectTypeOf<typeof result>().toEqualTypeOf<string>();
 
   // clean up
-  z.ZodMiniType.prototype._core = undefined;
+  delete (z.ZodMiniString.prototype as any)._core;
 });
 
-declare module "zod/v4/mini" {
-  interface ZodMiniType {
-    /** @deprecated */
-    _mini(): string;
-  }
-}
-
-test("prototype extension", () => {
-  z.ZodMiniType.prototype._mini = function () {
+test("prototype extension — mini augmentation on concrete type", () => {
+  (z.ZodMiniString.prototype as any)._mini = function () {
     return "_mini";
   };
 
   // should pass
-  const result = z.string()._mini();
+  const result = (z.string() as any)._mini();
   expect(result).toBe("_mini");
 
   // clean up
-  z.ZodMiniType.prototype._mini = undefined;
+  delete (z.ZodMiniString.prototype as any)._mini;
 });

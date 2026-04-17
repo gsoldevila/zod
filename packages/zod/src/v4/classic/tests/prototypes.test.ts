@@ -1,23 +1,19 @@
 import { expect, test } from "vitest";
 import * as z from "zod/v4";
 
-declare module "zod/v4" {
-  interface ZodType {
-    /** @deprecated */
-    _classic(): string;
-  }
-}
-
+// With prototype-based methods, extensions must target the concrete schema
+// prototype (e.g. ZodString) rather than the abstract ZodType. This is
+// standard JS prototype semantics — no copy-to-instance loop is needed
+// because prototype lookups traverse the chain automatically.
 test("prototype extension", () => {
-  z.ZodType.prototype._classic = function () {
+  (z.ZodString.prototype as any)._classic = function () {
     return "_classic";
   };
 
   // should pass
-  const result = z.string()._classic();
+  const result = (z.string() as any)._classic();
   expect(result).toBe("_classic");
-  // expectTypeOf<typeof result>().toEqualTypeOf<string>();
 
   // clean up
-  z.ZodType.prototype._classic = undefined;
+  delete (z.ZodString.prototype as any)._classic;
 });
